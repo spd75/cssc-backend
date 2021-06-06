@@ -17,15 +17,6 @@ export type AuthUserInfo = {
     gradeLevel: string;
 };
 
-export type CheckTokenBody = {
-    premail: string;
-};
-
-export type UpdateTokenBody = {
-    premail: string;
-    refreshToken: string;
-};
-
 export type CreateUserBody = {
     firstName: string;
     lastName: string;
@@ -34,9 +25,26 @@ export type CreateUserBody = {
     gradeLevel: string;
 };
 
+export type FindUserbody = {
+    premail: string;
+};
+
 export type LoginBody = {
     premail: string;
     password: string;
+};
+
+export type UpdateTokenBody = {
+    premail: string;
+    refreshToken: string;
+};
+
+export type UpdateUserBody = {
+    premail: string;
+    firstName?: string;
+    lastName?: string;
+    gradeLevel?: string;
+    paidDues?: boolean;
 };
 
 export type User = {

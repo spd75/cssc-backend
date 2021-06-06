@@ -10,7 +10,7 @@ import SHA from 'js-sha256';
 /* Config environment */
 Dotenv.config({ path: resolve(__dirname, '../.env') });
 
-/* Helper Functions */
+/* Helper Functions -- In alphabetical order by name */
 const debugErrors = (err: any, overrideError?: Error) => {
     console.log('\n\n\nSome errors have occured. Their information is below:');
     console.log('\nName: ' + err.name + '\nErrors:');
@@ -106,10 +106,39 @@ const validatePassword = (user: UCTypes.User, password: string) => {
     return Bcrypt.compare(preHashedPassword, user.password);
 };
 
-/* Functions called with routes */
+/* Functions called with routes -- In order that corresponding routes occur */
 export const getAllUsers = async () => {
     return db.UserModel.findAll()
         .then((response) => response)
+        .catch((err) => debugErrors(err));
+};
+
+export const createUser = async (body: UCTypes.CreateUserBody, drops: string[]) => {
+    const premail = genPremail(body.email);
+    const userInfo = {
+        premail: premail,
+        gradeLevel: body.gradeLevel
+    };
+    const authToken = genToken(userInfo, UCTypes.TokenType.Auth);
+    const refreshToken = genToken(userInfo, UCTypes.TokenType.Refresh);
+    const promises = [securePassword(body.password), hashToken(refreshToken)];
+    const resolved = (await handleParallelPromises(promises)) as string[];
+
+    return db.UserModel.create({
+        firstName: body.firstName,
+        lastName: body.lastName,
+        premail: premail,
+        email: body.email,
+        password: resolved[0],
+        gradeLevel: body.gradeLevel,
+        paidDues: false,
+        refreshToken: resolved[1]
+    })
+        .then((response: any) => {
+            const dataValues = { ...response.dataValues, authToken: authToken };
+            dataValues.refreshToken = refreshToken;
+            return Lodash.omit(dataValues, drops);
+        })
         .catch((err) => debugErrors(err));
 };
 
@@ -141,9 +170,9 @@ export const login = async (body: UCTypes.LoginBody, drops: string[]) => {
         .catch((err) => debugErrors(err));
 };
 
-export const checkValidToken = async (
+export const getUserByPremail = async (
     token: string,
-    body: UCTypes.CheckTokenBody,
+    body: UCTypes.FindUserbody,
     drops: string[]
 ) => {
     const premail = validateAuthToken(token);
@@ -158,6 +187,25 @@ export const checkValidToken = async (
         .catch((err) => debugErrors(err));
 };
 
+export const update = async (token: string, body: UCTypes.UpdateUserBody, drops: string[]) => {
+    const premail = validateAuthToken(token);
+    if (premail !== body.premail) {
+        throw UCTypes.InvalidTokenError;
+    }
+
+    await db.UserModel.update(
+        {
+            firstName: body.firstName,
+            lastName: body.lastName,
+            gradeLevel: body.gradeLevel,
+            paidDues: body.paidDues
+        },
+        { where: { premail: body.premail } }
+    );
+
+    return getUserByPremail(token, { premail: body.premail }, drops);
+};
+
 export const updateRefreshToken = async (body: UCTypes.UpdateTokenBody, drops: string[]) => {
     return db.UserModel.findOne({
         where: { premail: body.premail },
@@ -168,41 +216,8 @@ export const updateRefreshToken = async (body: UCTypes.UpdateTokenBody, drops: s
                 body.refreshToken,
                 result.dataValues
             );
-            await result.update({
-                refreshToken: hashedRefreshToken
-            });
-            await result.save();
-
+            await updateModel(result, { refreshToken: hashedRefreshToken });
             return { refreshToken: newRefreshToken, authToken: newAuthToken };
-        })
-        .catch((err) => debugErrors(err));
-};
-
-export const createUser = async (body: UCTypes.CreateUserBody, drops: string[]) => {
-    const premail = genPremail(body.email);
-    const userInfo = {
-        premail: premail,
-        gradeLevel: body.gradeLevel
-    };
-    const authToken = genToken(userInfo, UCTypes.TokenType.Auth);
-    const refreshToken = genToken(userInfo, UCTypes.TokenType.Refresh);
-    const promises = [securePassword(body.password), hashToken(refreshToken)];
-    const resolved = (await handleParallelPromises(promises)) as string[];
-
-    return db.UserModel.create({
-        firstName: body.firstName,
-        lastName: body.lastName,
-        premail: premail,
-        email: body.email,
-        password: resolved[0],
-        gradeLevel: body.gradeLevel,
-        paidDues: false,
-        refreshToken: resolved[1]
-    })
-        .then((response: any) => {
-            const dataValues = { ...response.dataValues, authToken: authToken };
-            dataValues.refreshToken = refreshToken;
-            return Lodash.omit(dataValues, drops);
         })
         .catch((err) => debugErrors(err));
 };
