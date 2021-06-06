@@ -48,13 +48,14 @@ router.post('/update-token', (req, res) => {
         .catch((err) => response_1.failure(res, err.name, 400));
 });
 router.post('/login', (req, res) => {
+    const drops = [...commonDrops, 'password'];
     userController
-        .login(req.body, commonDrops)
+        .login(req.body, drops)
         .then((user) => response_1.success(res, user))
         .catch((err) => response_1.failure(res, err.name, 400));
 });
 router.post('/create', (req, res) => {
-    const drops = [...commonDrops];
+    const drops = [...commonDrops, 'password'];
     userController
         .createUser(req.body, drops)
         .then((newUser) => response_1.success(res, newUser))

@@ -88,7 +88,7 @@ const securePassword = async (password: string) => {
 const updateModel = async (model: any, updateFields: object) => {
     await model.update(updateFields);
     await model.save();
-}
+};
 
 const validateAuthToken = (tokenStr: string) => {
     try {
@@ -125,19 +125,27 @@ export const login = async (body: UCTypes.LoginBody, drops: string[]) => {
                         throw UCTypes.UserAuthenticationFailed;
                     }
                     const newAuthToken = genToken(user, UCTypes.TokenType.Auth);
-                    const newRefreshToken = genToken(user,UCTypes.TokenType.Refresh);
+                    const newRefreshToken = genToken(user, UCTypes.TokenType.Refresh);
                     const hashedRefreshToken = await hashToken(newRefreshToken);
 
-                    await updateModel(response, {refreshToken: hashedRefreshToken});
+                    await updateModel(response, { refreshToken: hashedRefreshToken });
                     const refinedUser = Lodash.omit(user, drops);
-                    return {...refinedUser, refreshToken: newRefreshToken, authToken: newAuthToken};
+                    return {
+                        ...refinedUser,
+                        refreshToken: newRefreshToken,
+                        authToken: newAuthToken
+                    };
                 })
                 .catch((err) => debugErrors(err));
         })
         .catch((err) => debugErrors(err));
 };
 
-export const checkValidToken = async (token: string, body: UCTypes.CheckTokenBody, drops: string[]) => {
+export const checkValidToken = async (
+    token: string,
+    body: UCTypes.CheckTokenBody,
+    drops: string[]
+) => {
     const premail = validateAuthToken(token);
     if (premail !== body.premail) {
         throw UCTypes.InvalidTokenError;

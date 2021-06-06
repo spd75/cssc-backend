@@ -1,9 +1,29 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createUser = exports.updateRefreshToken = exports.checkValidToken = exports.login = exports.getAllUsers = void 0;
+const UCTypes = __importStar(require("./user-controller-types"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const connection_1 = __importDefault(require("../database/connection"));
 const dotenv_1 = __importDefault(require("dotenv"));
@@ -13,20 +33,6 @@ const path_1 = require("path");
 const js_sha256_1 = __importDefault(require("js-sha256"));
 /* Config environment */
 dotenv_1.default.config({ path: path_1.resolve(__dirname, '../.env') });
-/* Errors */
-const InvalidTokenError = new Error('Invalid token provided.');
-InvalidTokenError.name = 'InvalidTokenError';
-const PromiseSeriesFailed = new Error('A series of promises failed.');
-PromiseSeriesFailed.name = 'PromiseSeriesFailed';
-const UserAuthenticationFailed = new Error('User authentication failed.');
-UserAuthenticationFailed.name = 'UserAuthenticationFailed';
-const UserNotFound = new Error('User not found.');
-UserNotFound.name = 'UserNotFound';
-var TokenType;
-(function (TokenType) {
-    TokenType[TokenType["Auth"] = 0] = "Auth";
-    TokenType[TokenType["Refresh"] = 1] = "Refresh";
-})(TokenType || (TokenType = {}));
 /* Helper Functions */
 const debugErrors = (err, overrideError) => {
     console.log('\n\n\nSome errors have occured. Their information is below:');
@@ -42,7 +48,7 @@ const handleParallelPromises = async (promises) => {
                 return result.value;
             }
             catch (err) {
-                throw PromiseSeriesFailed;
+                throw UCTypes.PromiseSeriesFailed;
             }
         });
     });
@@ -57,10 +63,11 @@ const genPremail = (email) => {
 };
 const genToken = (userInfo, type) => {
     try {
-        const isAuth = type === TokenType.Auth;
+        const isAuth = type === UCTypes.TokenType.Auth;
         const secret = isAuth ? process.env.AUTH_TS : process.env.REF_TS;
         const expireTime = isAuth ? process.env.AT_EXPIRE : process.env.RT_EXPIRE;
-        const token = jsonwebtoken_1.default.sign(userInfo, secret, { expiresIn: expireTime });
+        const info = { premail: userInfo.premail, gradeLevel: userInfo.gradeLevel };
+        const token = jsonwebtoken_1.default.sign(info, secret, { expiresIn: expireTime });
         return token;
     }
     catch (err) {
@@ -80,11 +87,10 @@ const refreshAuthToken = async (refreshToken, user) => {
     return bcrypt_1.default.compare(preHashedToken, user.refreshToken)
         .then(async (result) => {
         if (!result) {
-            throw InvalidTokenError;
+            throw UCTypes.InvalidTokenError;
         }
-        const userInfo = { premail: user.premail, gradeLevel: user.gradeLevel };
-        const newAuthToken = genToken(userInfo, TokenType.Auth);
-        const newRefreshToken = genToken(userInfo, TokenType.Refresh);
+        const newAuthToken = genToken(user, UCTypes.TokenType.Auth);
+        const newRefreshToken = genToken(user, UCTypes.TokenType.Refresh);
         const hashedRefreshToken = await hashToken(newRefreshToken);
         return { newAuthToken, newRefreshToken, hashedRefreshToken };
     })
@@ -96,6 +102,10 @@ const securePassword = async (password) => {
         .then((result) => result)
         .catch((err) => debugErrors(err));
 };
+const updateModel = async (model, updateFields) => {
+    await model.update(updateFields);
+    await model.save();
+};
 const validateAuthToken = (tokenStr) => {
     try {
         const rawToken = tokenStr.split(' ')[1];
@@ -103,7 +113,7 @@ const validateAuthToken = (tokenStr) => {
         return user.premail;
     }
     catch (err) {
-        debugErrors(err, InvalidTokenError);
+        debugErrors(err, UCTypes.InvalidTokenError);
         return '';
     }
 };
@@ -120,17 +130,25 @@ const getAllUsers = async () => {
 exports.getAllUsers = getAllUsers;
 const login = async (body, drops) => {
     return connection_1.default.UserModel.findOne({
-        where: { premail: body.premail },
-        attributes: { exclude: drops }
+        where: { premail: body.premail }
     })
         .then(async (response) => {
         const user = response.dataValues;
         return validatePassword(user, body.password)
-            .then((result) => {
+            .then(async (result) => {
             if (!result) {
-                throw UserAuthenticationFailed;
+                throw UCTypes.UserAuthenticationFailed;
             }
-            return user;
+            const newAuthToken = genToken(user, UCTypes.TokenType.Auth);
+            const newRefreshToken = genToken(user, UCTypes.TokenType.Refresh);
+            const hashedRefreshToken = await hashToken(newRefreshToken);
+            await updateModel(response, { refreshToken: hashedRefreshToken });
+            const refinedUser = lodash_1.default.omit(user, drops);
+            return {
+                ...refinedUser,
+                refreshToken: newRefreshToken,
+                authToken: newAuthToken
+            };
         })
             .catch((err) => debugErrors(err));
     })
@@ -140,7 +158,7 @@ exports.login = login;
 const checkValidToken = async (token, body, drops) => {
     const premail = validateAuthToken(token);
     if (premail !== body.premail) {
-        throw InvalidTokenError;
+        throw UCTypes.InvalidTokenError;
     }
     return connection_1.default.UserModel.findOne({
         where: { premail: premail },
@@ -161,7 +179,7 @@ const updateRefreshToken = async (body, drops) => {
             refreshToken: hashedRefreshToken
         });
         await result.save();
-        return { authToken: newAuthToken, refreshToken: newRefreshToken };
+        return { refreshToken: newRefreshToken, authToken: newAuthToken };
     })
         .catch((err) => debugErrors(err));
 };
@@ -172,8 +190,8 @@ const createUser = async (body, drops) => {
         premail: premail,
         gradeLevel: body.gradeLevel
     };
-    const authToken = genToken(userInfo, TokenType.Auth);
-    const refreshToken = genToken(userInfo, TokenType.Refresh);
+    const authToken = genToken(userInfo, UCTypes.TokenType.Auth);
+    const refreshToken = genToken(userInfo, UCTypes.TokenType.Refresh);
     const promises = [securePassword(body.password), hashToken(refreshToken)];
     const resolved = (await handleParallelPromises(promises));
     return connection_1.default.UserModel.create({

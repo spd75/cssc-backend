@@ -3,7 +3,7 @@ import * as userController from '../controllers/user-controller';
 import { failure, success } from './response';
 
 const router = Express.Router();
-const commonDrops = ['createdAt','updatedAt'];
+const commonDrops = ['createdAt', 'updatedAt'];
 
 router.get('/', (req: Request, res: Response) => {
     userController
@@ -29,7 +29,7 @@ router.post('/update-token', (req: Request, res: Response) => {
 });
 
 router.post('/login', (req: Request, res: Response) => {
-    const drops = [...commonDrops, 'password']
+    const drops = [...commonDrops, 'password'];
     userController
         .login(req.body, drops)
         .then((user) => success(res, user))
