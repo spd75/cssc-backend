@@ -1,3 +1,4 @@
+import * as UCTypes from './user-controller-types';
 import Bcrypt from 'bcrypt';
 import db from '../database/connection';
 import Dotenv from 'dotenv';
@@ -8,65 +9,6 @@ import SHA from 'js-sha256';
 
 /* Config environment */
 Dotenv.config({ path: resolve(__dirname, '../.env') });
-
-/* Errors */
-const InvalidTokenError = new Error('Invalid token provided.');
-InvalidTokenError.name = 'InvalidTokenError';
-
-const PromiseSeriesFailed = new Error('A series of promises failed.');
-PromiseSeriesFailed.name = 'PromiseSeriesFailed';
-
-const UserAuthenticationFailed = new Error('User authentication failed.');
-UserAuthenticationFailed.name = 'UserAuthenticationFailed';
-
-const UserNotFound = new Error('User not found.');
-UserNotFound.name = 'UserNotFoun';
-
-/* Helper types */
-type AuthUserInfo = {
-    premail: string;
-    gradeLevel: string;
-};
-
-type CheckTokenBody = {
-    premail: string;
-};
-
-type UpdateTokenBody = {
-    premail: string;
-    refreshToken: string;
-};
-
-type CreateUserBody = {
-    firstName: string;
-    lastName: string;
-    email: string;
-    password: string;
-    gradeLevel: string;
-};
-
-type LoginBody = {
-    premail: string;
-    password: string;
-};
-
-type User = {
-    firstName: string;
-    lastName: string;
-    premail: string;
-    email: string;
-    password: string;
-    gradeLevel: string;
-    paidDues: boolean;
-    refreshToken: string;
-    createdAt?: Date;
-    updatedAt?: Date;
-};
-
-enum TokenType {
-    Auth,
-    Refresh
-}
 
 /* Helper Functions */
 const debugErrors = (err: any, overrideError?: Error) => {
@@ -83,7 +25,7 @@ const handleParallelPromises = async (promises: Promise<any>[]) => {
             try {
                 return (result as PromiseFulfilledResult<any>).value;
             } catch (err) {
-                throw PromiseSeriesFailed;
+                throw UCTypes.PromiseSeriesFailed;
             }
         });
     });
@@ -99,12 +41,13 @@ const genPremail = (email: string) => {
     return email.split('@')[0];
 };
 
-const genToken = (userInfo: AuthUserInfo, type: TokenType) => {
+const genToken = (userInfo: any, type: UCTypes.TokenType) => {
     try {
-        const isAuth = type === TokenType.Auth;
+        const isAuth = type === UCTypes.TokenType.Auth;
         const secret = isAuth ? process.env.AUTH_TS : process.env.REF_TS;
         const expireTime = isAuth ? process.env.AT_EXPIRE : process.env.RT_EXPIRE;
-        const token = JWT.sign(userInfo, secret as Secret, { expiresIn: expireTime });
+        const info = { premail: userInfo.premail, gradeLevel: userInfo.gradeLevel };
+        const token = JWT.sign(info, secret as Secret, { expiresIn: expireTime });
         return token;
     } catch (err) {
         debugErrors(err);
@@ -120,16 +63,15 @@ const hashToken = async (token: string) => {
         .catch((err) => debugErrors(err));
 };
 
-const refreshAuthToken = async (refreshToken: string, user: User) => {
+const refreshAuthToken = async (refreshToken: string, user: UCTypes.User) => {
     const preHashedToken = hashSHA256(refreshToken);
     return Bcrypt.compare(preHashedToken, user.refreshToken)
         .then(async (result) => {
             if (!result) {
-                throw InvalidTokenError;
+                throw UCTypes.InvalidTokenError;
             }
-            const userInfo = { premail: user.premail, gradeLevel: user.gradeLevel };
-            const newAuthToken = genToken(userInfo, TokenType.Auth);
-            const newRefreshToken = genToken(userInfo, TokenType.Refresh);
+            const newAuthToken = genToken(user, UCTypes.TokenType.Auth);
+            const newRefreshToken = genToken(user, UCTypes.TokenType.Refresh);
             const hashedRefreshToken = await hashToken(newRefreshToken);
             return { newAuthToken, newRefreshToken, hashedRefreshToken };
         })
@@ -143,18 +85,23 @@ const securePassword = async (password: string) => {
         .catch((err) => debugErrors(err));
 };
 
+const updateModel = async (model: any, updateFields: object) => {
+    await model.update(updateFields);
+    await model.save();
+}
+
 const validateAuthToken = (tokenStr: string) => {
     try {
         const rawToken = tokenStr.split(' ')[1];
-        const user = JWT.verify(rawToken, process.env.AUTH_TS as Secret) as AuthUserInfo;
+        const user = JWT.verify(rawToken, process.env.AUTH_TS as Secret) as UCTypes.AuthUserInfo;
         return user.premail;
     } catch (err) {
-        debugErrors(err, InvalidTokenError);
+        debugErrors(err, UCTypes.InvalidTokenError);
         return '';
     }
 };
 
-const validatePassword = (user: User, password: string) => {
+const validatePassword = (user: UCTypes.User, password: string) => {
     const preHashedPassword = hashSHA256(password);
     return Bcrypt.compare(preHashedPassword, user.password);
 };
@@ -166,29 +113,34 @@ export const getAllUsers = async () => {
         .catch((err) => debugErrors(err));
 };
 
-export const login = async (body: LoginBody, drops: string[]) => {
+export const login = async (body: UCTypes.LoginBody, drops: string[]) => {
     return db.UserModel.findOne({
-        where: { premail: body.premail },
-        attributes: { exclude: drops }
+        where: { premail: body.premail }
     })
         .then(async (response: any) => {
             const user = response.dataValues;
             return validatePassword(user, body.password)
-                .then((result) => {
+                .then(async (result) => {
                     if (!result) {
-                        throw UserAuthenticationFailed;
+                        throw UCTypes.UserAuthenticationFailed;
                     }
-                    return user;
+                    const newAuthToken = genToken(user, UCTypes.TokenType.Auth);
+                    const newRefreshToken = genToken(user,UCTypes.TokenType.Refresh);
+                    const hashedRefreshToken = await hashToken(newRefreshToken);
+
+                    await updateModel(response, {refreshToken: hashedRefreshToken});
+                    const refinedUser = Lodash.omit(user, drops);
+                    return {...refinedUser, refreshToken: newRefreshToken, authToken: newAuthToken};
                 })
                 .catch((err) => debugErrors(err));
         })
         .catch((err) => debugErrors(err));
 };
 
-export const checkValidToken = async (token: string, body: CheckTokenBody, drops: string[]) => {
+export const checkValidToken = async (token: string, body: UCTypes.CheckTokenBody, drops: string[]) => {
     const premail = validateAuthToken(token);
     if (premail !== body.premail) {
-        throw InvalidTokenError;
+        throw UCTypes.InvalidTokenError;
     }
     return db.UserModel.findOne({
         where: { premail: premail },
@@ -198,7 +150,7 @@ export const checkValidToken = async (token: string, body: CheckTokenBody, drops
         .catch((err) => debugErrors(err));
 };
 
-export const updateRefreshToken = async (body: UpdateTokenBody, drops: string[]) => {
+export const updateRefreshToken = async (body: UCTypes.UpdateTokenBody, drops: string[]) => {
     return db.UserModel.findOne({
         where: { premail: body.premail },
         attributes: { exclude: drops }
@@ -213,19 +165,19 @@ export const updateRefreshToken = async (body: UpdateTokenBody, drops: string[])
             });
             await result.save();
 
-            return { authToken: newAuthToken, refreshToken: newRefreshToken };
+            return { refreshToken: newRefreshToken, authToken: newAuthToken };
         })
         .catch((err) => debugErrors(err));
 };
 
-export const createUser = async (body: CreateUserBody, drops: string[]) => {
+export const createUser = async (body: UCTypes.CreateUserBody, drops: string[]) => {
     const premail = genPremail(body.email);
     const userInfo = {
         premail: premail,
         gradeLevel: body.gradeLevel
     };
-    const authToken = genToken(userInfo, TokenType.Auth);
-    const refreshToken = genToken(userInfo, TokenType.Refresh);
+    const authToken = genToken(userInfo, UCTypes.TokenType.Auth);
+    const refreshToken = genToken(userInfo, UCTypes.TokenType.Refresh);
     const promises = [securePassword(body.password), hashToken(refreshToken)];
     const resolved = (await handleParallelPromises(promises)) as string[];
 
