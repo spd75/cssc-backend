@@ -47,4 +47,12 @@ router.post('/update-token', (req: Request, res: Response) => {
         .catch((err) => failure(res, err.name, 400));
 });
 
+router.post('/add-trip/:id', (req: Request, res: Response) => {
+    const tokenStr = req.headers.authorization as string;
+    const tripId = +req.params.id;
+    UserController.addTripToUser(tokenStr, req.body, tripId, commonDrops)
+        .then((updatedUser) => success(res, updatedUser))
+        .catch((err) => failure(res, err.name, 400));
+});
+
 export default router;

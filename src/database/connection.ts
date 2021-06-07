@@ -28,5 +28,6 @@ userTripRelation.sync();
 export default {
     Conn: connection,
     UserModel: userModel,
-    TripModel: tripModel
+    TripModel: tripModel,
+    UserTripRelation: userTripRelation
 };

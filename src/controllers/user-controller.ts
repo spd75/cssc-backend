@@ -226,3 +226,23 @@ export const updateRefreshToken = async (body: UCTypes.UpdateTokenBody, drops: s
         })
         .catch((err) => debugErrors(err));
 };
+
+export const addTripToUser = async (
+    token: string,
+    body: UCTypes.FindUserbody,
+    tripId: number,
+    drops: string[]
+) => {
+    await getUserByPremail(token, body, drops)
+        .then(async (user) => {
+            console.log(user.id);
+            await db.UserTripRelation.create({
+                paid: false,
+                UserId: user.id,
+                TripId: tripId
+            }).catch((err) => debugErrors(err));
+        })
+        .catch((err) => debugErrors(err));
+
+    return getUserByPremail(token, body, drops);
+};
