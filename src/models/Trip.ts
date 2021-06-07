@@ -1,4 +1,4 @@
-import { Sequelize, DataTypes } from 'sequelize';
+import { Sequelize, DataTypes as dt } from 'sequelize';
 
 const travelMethodExp = new RegExp('FINDRIDE|BUS|AIRPLANE|MIXED');
 const lodgingMethodExp = new RegExp('FINDLODGE|HOTEL|SKILODGE|AIRBNB|HOUSE');
@@ -7,41 +7,41 @@ const lodgingMethodExp = new RegExp('FINDLODGE|HOTEL|SKILODGE|AIRBNB|HOUSE');
 export default (connection: Sequelize) => {
     return connection.define('Trip', {
         location: {
-            type: DataTypes.STRING(50),
+            type: dt.STRING(50),
             allowNull: false
         },
         mountain: {
-            type: DataTypes.STRING(25),
+            type: dt.STRING(25),
             allowNull: false
         },
         description: {
-            type: DataTypes.TEXT,
+            type: dt.TEXT,
             allowNull: false
         },
         startDate: {
-            type: DataTypes.DATE,
+            type: dt.DATE,
             allowNull: false
         },
         endDate: {
-            type: DataTypes.DATE,
+            type: dt.DATE,
             allowNull: false
         },
         travelMethod: {
-            type: DataTypes.STRING(10),
+            type: dt.STRING(10),
             allowNull: false,
             validate: {
                 is: travelMethodExp
             }
         },
         lodgingMethod: {
-            type: DataTypes.STRING(10),
+            type: dt.STRING(10),
             allowNull: false,
             validate: {
                 is: lodgingMethodExp
             }
         },
         capacity: {
-            type: DataTypes.NUMBER
+            type: dt.INTEGER
         }
     });
 };

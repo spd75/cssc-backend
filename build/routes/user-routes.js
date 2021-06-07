@@ -18,47 +18,46 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = __importDefault(require("express"));
-const userController = __importStar(require("../controllers/user-controller"));
+const UserController = __importStar(require("../controllers/user-controller"));
 const response_1 = require("./response");
-const router = express_1.default.Router();
+const express_1 = require("express");
+const router = express_1.Router();
 const commonDrops = ['createdAt', 'updatedAt'];
 router.get('/', (req, res) => {
-    userController
-        .getAllUsers()
+    UserController.getAllUsers()
         .then((users) => response_1.success(res, users))
-        .catch((err) => response_1.failure(res, err.name, 400));
-});
-router.get('/check-token', (req, res) => {
-    const drops = [...commonDrops, 'password', 'refreshToken'];
-    const tokenStr = req.headers.authorization;
-    userController
-        .checkValidToken(tokenStr, req.body, drops)
-        .then((response) => response_1.success(res, response))
-        .catch((err) => response_1.failure(res, err.name, 400));
-});
-router.post('/update-token', (req, res) => {
-    userController
-        .updateRefreshToken(req.body, commonDrops)
-        .then((response) => response_1.success(res, response))
-        .catch((err) => response_1.failure(res, err.name, 400));
-});
-router.post('/login', (req, res) => {
-    const drops = [...commonDrops, 'password'];
-    userController
-        .login(req.body, drops)
-        .then((user) => response_1.success(res, user))
         .catch((err) => response_1.failure(res, err.name, 400));
 });
 router.post('/create', (req, res) => {
     const drops = [...commonDrops, 'password'];
-    userController
-        .createUser(req.body, drops)
+    UserController.createUser(req.body, drops)
         .then((newUser) => response_1.success(res, newUser))
+        .catch((err) => response_1.failure(res, err.name, 400));
+});
+router.post('/login', (req, res) => {
+    const drops = [...commonDrops, 'password'];
+    UserController.login(req.body, drops)
+        .then((user) => response_1.success(res, user))
+        .catch((err) => response_1.failure(res, err.name, 400));
+});
+router.get('/by-premail', (req, res) => {
+    const drops = [...commonDrops, 'password', 'refreshToken'];
+    const tokenStr = req.headers.authorization;
+    UserController.getUserByPremail(tokenStr, req.body, drops)
+        .then((response) => response_1.success(res, response))
+        .catch((err) => response_1.failure(res, err.name, 400));
+});
+router.post('/update', (req, res) => {
+    const drops = [...commonDrops, 'password', 'refreshToken'];
+    const tokenStr = req.headers.authorization;
+    UserController.update(tokenStr, req.body, drops)
+        .then((user) => response_1.success(res, user))
+        .catch((err) => response_1.failure(res, err.name, 400));
+});
+router.post('/update-token', (req, res) => {
+    UserController.updateRefreshToken(req.body, commonDrops)
+        .then((response) => response_1.success(res, response))
         .catch((err) => response_1.failure(res, err.name, 400));
 });
 exports.default = router;

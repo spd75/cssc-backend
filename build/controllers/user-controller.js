@@ -22,7 +22,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createUser = exports.updateRefreshToken = exports.checkValidToken = exports.login = exports.getAllUsers = void 0;
+exports.updateRefreshToken = exports.update = exports.getUserByPremail = exports.login = exports.createUser = exports.getAllUsers = void 0;
 const UCTypes = __importStar(require("./user-controller-types"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const connection_1 = __importDefault(require("../database/connection"));
@@ -33,7 +33,7 @@ const path_1 = require("path");
 const js_sha256_1 = __importDefault(require("js-sha256"));
 /* Config environment */
 dotenv_1.default.config({ path: path_1.resolve(__dirname, '../.env') });
-/* Helper Functions */
+/* Helper Functions -- In alphabetical order by name */
 const debugErrors = (err, overrideError) => {
     console.log('\n\n\nSome errors have occured. Their information is below:');
     console.log('\nName: ' + err.name + '\nErrors:');
@@ -121,69 +121,13 @@ const validatePassword = (user, password) => {
     const preHashedPassword = hashSHA256(password);
     return bcrypt_1.default.compare(preHashedPassword, user.password);
 };
-/* Functions called with routes */
+/* Functions called with routes -- In order that corresponding routes occur */
 const getAllUsers = async () => {
     return connection_1.default.UserModel.findAll()
         .then((response) => response)
         .catch((err) => debugErrors(err));
 };
 exports.getAllUsers = getAllUsers;
-const login = async (body, drops) => {
-    return connection_1.default.UserModel.findOne({
-        where: { premail: body.premail }
-    })
-        .then(async (response) => {
-        const user = response.dataValues;
-        return validatePassword(user, body.password)
-            .then(async (result) => {
-            if (!result) {
-                throw UCTypes.UserAuthenticationFailed;
-            }
-            const newAuthToken = genToken(user, UCTypes.TokenType.Auth);
-            const newRefreshToken = genToken(user, UCTypes.TokenType.Refresh);
-            const hashedRefreshToken = await hashToken(newRefreshToken);
-            await updateModel(response, { refreshToken: hashedRefreshToken });
-            const refinedUser = lodash_1.default.omit(user, drops);
-            return {
-                ...refinedUser,
-                refreshToken: newRefreshToken,
-                authToken: newAuthToken
-            };
-        })
-            .catch((err) => debugErrors(err));
-    })
-        .catch((err) => debugErrors(err));
-};
-exports.login = login;
-const checkValidToken = async (token, body, drops) => {
-    const premail = validateAuthToken(token);
-    if (premail !== body.premail) {
-        throw UCTypes.InvalidTokenError;
-    }
-    return connection_1.default.UserModel.findOne({
-        where: { premail: premail },
-        attributes: { exclude: drops }
-    })
-        .then((result) => result.dataValues)
-        .catch((err) => debugErrors(err));
-};
-exports.checkValidToken = checkValidToken;
-const updateRefreshToken = async (body, drops) => {
-    return connection_1.default.UserModel.findOne({
-        where: { premail: body.premail },
-        attributes: { exclude: drops }
-    })
-        .then(async (result) => {
-        const { newAuthToken, newRefreshToken, hashedRefreshToken } = await refreshAuthToken(body.refreshToken, result.dataValues);
-        await result.update({
-            refreshToken: hashedRefreshToken
-        });
-        await result.save();
-        return { refreshToken: newRefreshToken, authToken: newAuthToken };
-    })
-        .catch((err) => debugErrors(err));
-};
-exports.updateRefreshToken = updateRefreshToken;
 const createUser = async (body, drops) => {
     const premail = genPremail(body.email);
     const userInfo = {
@@ -212,3 +156,70 @@ const createUser = async (body, drops) => {
         .catch((err) => debugErrors(err));
 };
 exports.createUser = createUser;
+const login = async (body, drops) => {
+    return connection_1.default.UserModel.findOne({
+        where: { premail: body.premail }
+    })
+        .then(async (response) => {
+        const user = response.dataValues;
+        return validatePassword(user, body.password)
+            .then(async (result) => {
+            if (!result) {
+                throw UCTypes.UserAuthenticationFailed;
+            }
+            const newAuthToken = genToken(user, UCTypes.TokenType.Auth);
+            const newRefreshToken = genToken(user, UCTypes.TokenType.Refresh);
+            const hashedRefreshToken = await hashToken(newRefreshToken);
+            await updateModel(response, { refreshToken: hashedRefreshToken });
+            const refinedUser = lodash_1.default.omit(user, drops);
+            return {
+                ...refinedUser,
+                refreshToken: newRefreshToken,
+                authToken: newAuthToken
+            };
+        })
+            .catch((err) => debugErrors(err));
+    })
+        .catch((err) => debugErrors(err));
+};
+exports.login = login;
+const getUserByPremail = async (token, body, drops) => {
+    const premail = validateAuthToken(token);
+    if (premail !== body.premail) {
+        throw UCTypes.InvalidTokenError;
+    }
+    return connection_1.default.UserModel.findOne({
+        where: { premail: premail },
+        attributes: { exclude: drops }
+    })
+        .then((result) => result.dataValues)
+        .catch((err) => debugErrors(err));
+};
+exports.getUserByPremail = getUserByPremail;
+const update = async (token, body, drops) => {
+    const premail = validateAuthToken(token);
+    if (premail !== body.premail) {
+        throw UCTypes.InvalidTokenError;
+    }
+    await connection_1.default.UserModel.update({
+        firstName: body.firstName,
+        lastName: body.lastName,
+        gradeLevel: body.gradeLevel,
+        paidDues: body.paidDues
+    }, { where: { premail: body.premail } });
+    return exports.getUserByPremail(token, { premail: body.premail }, drops);
+};
+exports.update = update;
+const updateRefreshToken = async (body, drops) => {
+    return connection_1.default.UserModel.findOne({
+        where: { premail: body.premail },
+        attributes: { exclude: drops }
+    })
+        .then(async (result) => {
+        const { newAuthToken, newRefreshToken, hashedRefreshToken } = await refreshAuthToken(body.refreshToken, result.dataValues);
+        await updateModel(result, { refreshToken: hashedRefreshToken });
+        return { refreshToken: newRefreshToken, authToken: newAuthToken };
+    })
+        .catch((err) => debugErrors(err));
+};
+exports.updateRefreshToken = updateRefreshToken;

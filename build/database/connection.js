@@ -8,6 +8,7 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = require("path");
 const sequelize_1 = require("sequelize");
 const User_1 = __importDefault(require("../models/User"));
+const Trip_1 = __importDefault(require("../models/Trip"));
 dotenv_1.default.config({ path: path_1.resolve(__dirname, '../../.env') });
 exports.connection = new sequelize_1.Sequelize('cssc', 'root', process.env.DB_PASSWORD, {
     host: 'localhost',
@@ -16,7 +17,10 @@ exports.connection = new sequelize_1.Sequelize('cssc', 'root', process.env.DB_PA
 });
 const userModel = User_1.default(exports.connection);
 userModel.sync();
+const tripModel = Trip_1.default(exports.connection);
+tripModel.sync();
 exports.default = {
     Conn: exports.connection,
-    UserModel: userModel
+    UserModel: userModel,
+    TripModel: tripModel
 };

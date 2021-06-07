@@ -11,6 +11,7 @@ const https_1 = __importDefault(require("https"));
 const path_1 = require("path");
 /** Routes */
 const user_routes_1 = __importDefault(require("./routes/user-routes"));
+const trip_routes_1 = __importDefault(require("./routes/trip-routes"));
 /** Initialize environment */
 dotenv_1.default.config({ path: path_1.resolve(__dirname, '../.env') });
 /** Setup application and port */
@@ -30,6 +31,7 @@ app.use((req, res, next) => {
     next();
 });
 app.use('/users', user_routes_1.default);
+app.use('/trips', trip_routes_1.default);
 app.use((_, res) => {
     res.status(404).json({ error: 'EndpointNotFound' });
 });

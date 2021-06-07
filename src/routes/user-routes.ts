@@ -1,8 +1,8 @@
-import Express, { NextFunction, Response, Request } from 'express';
 import * as UserController from '../controllers/user-controller';
 import { failure, success } from './response';
+import { Response, Request, Router } from 'express';
 
-const router = Express.Router();
+const router = Router();
 const commonDrops = ['createdAt', 'updatedAt'];
 
 router.get('/', (req: Request, res: Response) => {
@@ -37,7 +37,7 @@ router.post('/update', (req: Request, res: Response) => {
     const drops = [...commonDrops, 'password', 'refreshToken'];
     const tokenStr = req.headers.authorization as string;
     UserController.update(tokenStr, req.body, drops)
-        .then((user) => success(res, user))
+        .then((user) => success(res, user as object))
         .catch((err) => failure(res, err.name, 400));
 });
 

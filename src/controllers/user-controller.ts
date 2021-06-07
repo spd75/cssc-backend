@@ -108,7 +108,7 @@ const validatePassword = (user: UCTypes.User, password: string) => {
 
 /* Functions called with routes -- In order that corresponding routes occur */
 export const getAllUsers = async () => {
-    return db.UserModel.findAll()
+    return db.UserModel.findAll({ include: db.TripModel })
         .then((response) => response)
         .catch((err) => debugErrors(err));
 };
@@ -124,16 +124,19 @@ export const createUser = async (body: UCTypes.CreateUserBody, drops: string[]) 
     const promises = [securePassword(body.password), hashToken(refreshToken)];
     const resolved = (await handleParallelPromises(promises)) as string[];
 
-    return db.UserModel.create({
-        firstName: body.firstName,
-        lastName: body.lastName,
-        premail: premail,
-        email: body.email,
-        password: resolved[0],
-        gradeLevel: body.gradeLevel,
-        paidDues: false,
-        refreshToken: resolved[1]
-    })
+    return db.UserModel.create(
+        {
+            firstName: body.firstName,
+            lastName: body.lastName,
+            premail: premail,
+            email: body.email,
+            password: resolved[0],
+            gradeLevel: body.gradeLevel,
+            paidDues: false,
+            refreshToken: resolved[1]
+        },
+        { include: db.TripModel }
+    )
         .then((response: any) => {
             const dataValues = { ...response.dataValues, authToken: authToken };
             dataValues.refreshToken = refreshToken;
@@ -144,7 +147,8 @@ export const createUser = async (body: UCTypes.CreateUserBody, drops: string[]) 
 
 export const login = async (body: UCTypes.LoginBody, drops: string[]) => {
     return db.UserModel.findOne({
-        where: { premail: body.premail }
+        where: { premail: body.premail },
+        include: db.TripModel
     })
         .then(async (response: any) => {
             const user = response.dataValues;
@@ -158,7 +162,7 @@ export const login = async (body: UCTypes.LoginBody, drops: string[]) => {
                     const hashedRefreshToken = await hashToken(newRefreshToken);
 
                     await updateModel(response, { refreshToken: hashedRefreshToken });
-                    const refinedUser = Lodash.omit(user, drops);
+                    const refinedUser = Lodash.omit(user, [...drops, 'refreshToken']);
                     return {
                         ...refinedUser,
                         refreshToken: newRefreshToken,
@@ -181,6 +185,7 @@ export const getUserByPremail = async (
     }
     return db.UserModel.findOne({
         where: { premail: premail },
+        include: db.TripModel,
         attributes: { exclude: drops }
     })
         .then((result: any) => result.dataValues)

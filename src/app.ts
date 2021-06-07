@@ -7,6 +7,7 @@ import { resolve } from 'path';
 
 /** Routes */
 import userRoutes from './routes/user-routes';
+import tripRoutes from './routes/trip-routes';
 
 /** Initialize environment */
 Dotenv.config({ path: resolve(__dirname, '../.env') });
@@ -32,6 +33,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 app.use('/users', userRoutes);
+app.use('/trips', tripRoutes);
 
 app.use((_: Request, res: Response) => {
     res.status(404).json({ error: 'EndpointNotFound' });
