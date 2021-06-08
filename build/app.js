@@ -10,6 +10,7 @@ const fs_1 = __importDefault(require("fs"));
 const https_1 = __importDefault(require("https"));
 const path_1 = require("path");
 /** Routes */
+const announcement_route_1 = __importDefault(require("./routes/announcement-route"));
 const user_routes_1 = __importDefault(require("./routes/user-routes"));
 const trip_routes_1 = __importDefault(require("./routes/trip-routes"));
 /** Initialize environment */
@@ -32,6 +33,7 @@ app.use((req, res, next) => {
 });
 app.use('/users', user_routes_1.default);
 app.use('/trips', trip_routes_1.default);
+app.use('/announcements', announcement_route_1.default);
 app.use((_, res) => {
     res.status(404).json({ error: 'EndpointNotFound' });
 });

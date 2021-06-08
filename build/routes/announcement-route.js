@@ -19,31 +19,25 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const TripController = __importStar(require("../controllers/trip-controller"));
-const response_1 = require("./response");
+const AnnounceController = __importStar(require("../controllers/announcement-controller"));
 const express_1 = require("express");
+const response_1 = require("./response");
 const router = express_1.Router();
-const commonDrops = ['createdAt', 'updatedAt'];
+const commonDrops = ['updatedAt'];
 router.get('/', (req, res) => {
-    TripController.getAllTrips()
-        .then((trips) => response_1.success(res, trips))
+    AnnounceController.getAll(commonDrops)
+        .then((announcements) => response_1.success(res, announcements))
         .catch((err) => response_1.failure(res, err.name, 400));
 });
 router.post('/create', (req, res) => {
-    TripController.createTrip(req.body, commonDrops)
-        .then((newTrip) => response_1.success(res, newTrip))
+    AnnounceController.createAnnounce(req.body, commonDrops)
+        .then((announcement) => response_1.success(res, announcement))
         .catch((err) => response_1.failure(res, err.name, 400));
 });
-router.get('/:id', (req, res) => {
-    const id = +req.params.id;
-    TripController.getTripById(id, commonDrops)
-        .then((trip) => response_1.success(res, trip))
-        .catch((err) => response_1.failure(res, err.name, 400));
-});
-router.post('/update/:id', (req, res) => {
-    const id = +req.params.id;
-    TripController.updateTrip(id, req.body, commonDrops)
-        .then((updatedTrip) => response_1.success(res, updatedTrip))
+router.post('/:id', (req, res) => {
+    const id = +req.body.id;
+    AnnounceController.getAnnounceById(id, commonDrops)
+        .then((announcement) => response_1.success(res, announcement))
         .catch((err) => response_1.failure(res, err.name, 400));
 });
 exports.default = router;

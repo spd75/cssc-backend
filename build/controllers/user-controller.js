@@ -22,7 +22,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateRefreshToken = exports.update = exports.getUserByPremail = exports.login = exports.createUser = exports.getAllUsers = void 0;
+exports.addTripToUser = exports.updateRefreshToken = exports.update = exports.getUserByPremail = exports.login = exports.createUser = exports.getAllUsers = void 0;
 const UCTypes = __importStar(require("./user-controller-types"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const connection_1 = __importDefault(require("../database/connection"));
@@ -123,7 +123,7 @@ const validatePassword = (user, password) => {
 };
 /* Functions called with routes -- In order that corresponding routes occur */
 const getAllUsers = async () => {
-    return connection_1.default.UserModel.findAll()
+    return connection_1.default.UserModel.findAll({ include: connection_1.default.TripModel })
         .then((response) => response)
         .catch((err) => debugErrors(err));
 };
@@ -147,7 +147,7 @@ const createUser = async (body, drops) => {
         gradeLevel: body.gradeLevel,
         paidDues: false,
         refreshToken: resolved[1]
-    })
+    }, { include: connection_1.default.TripModel })
         .then((response) => {
         const dataValues = { ...response.dataValues, authToken: authToken };
         dataValues.refreshToken = refreshToken;
@@ -158,7 +158,8 @@ const createUser = async (body, drops) => {
 exports.createUser = createUser;
 const login = async (body, drops) => {
     return connection_1.default.UserModel.findOne({
-        where: { premail: body.premail }
+        where: { premail: body.premail },
+        include: connection_1.default.TripModel
     })
         .then(async (response) => {
         const user = response.dataValues;
@@ -171,7 +172,7 @@ const login = async (body, drops) => {
             const newRefreshToken = genToken(user, UCTypes.TokenType.Refresh);
             const hashedRefreshToken = await hashToken(newRefreshToken);
             await updateModel(response, { refreshToken: hashedRefreshToken });
-            const refinedUser = lodash_1.default.omit(user, drops);
+            const refinedUser = lodash_1.default.omit(user, [...drops, 'refreshToken']);
             return {
                 ...refinedUser,
                 refreshToken: newRefreshToken,
@@ -190,6 +191,7 @@ const getUserByPremail = async (token, body, drops) => {
     }
     return connection_1.default.UserModel.findOne({
         where: { premail: premail },
+        include: connection_1.default.TripModel,
         attributes: { exclude: drops }
     })
         .then((result) => result.dataValues)
@@ -223,3 +225,17 @@ const updateRefreshToken = async (body, drops) => {
         .catch((err) => debugErrors(err));
 };
 exports.updateRefreshToken = updateRefreshToken;
+const addTripToUser = async (token, body, tripId, drops) => {
+    await exports.getUserByPremail(token, body, drops)
+        .then(async (user) => {
+        console.log(user.id);
+        await connection_1.default.UserTripRelation.create({
+            paid: false,
+            UserId: user.id,
+            TripId: tripId
+        }).catch((err) => debugErrors(err));
+    })
+        .catch((err) => debugErrors(err));
+    return exports.getUserByPremail(token, body, drops);
+};
+exports.addTripToUser = addTripToUser;
