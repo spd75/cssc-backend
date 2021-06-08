@@ -1,28 +1,6 @@
+import * as TCTypes from './trip-controller-types';
 import db from '../database/connection';
 import Lodash from 'lodash';
-
-/* Types */
-type CreateTripBody = {
-    location: string;
-    mountain: string;
-    description: string;
-    startDate: Date;
-    endDate: Date;
-    travelMethod: string;
-    lodgingMethod: string;
-    capacity?: number;
-};
-
-type UpdateTripBody = {
-    location?: string;
-    mountain?: string;
-    description?: string;
-    startDate?: Date;
-    endDate?: Date;
-    travelMethod?: string;
-    lodgingMethod?: string;
-    capacity?: number;
-};
 
 /* Helper Functions -- In alphabetical order by name */
 const debugErrors = (err: any, overrideError?: Error) => {
@@ -40,7 +18,7 @@ export const getAllTrips = async () => {
         .catch((err) => debugErrors(err));
 };
 
-export const createTrip = async (body: CreateTripBody, drops: string[]) => {
+export const createTrip = async (body: TCTypes.CreateTripBody, drops: string[]) => {
     return db.TripModel.create({
         location: body.location,
         mountain: body.mountain,
@@ -68,7 +46,7 @@ export const getTripById = async (id: number, drops: string[]) => {
         .catch((err) => debugErrors(err));
 };
 
-export const updateTrip = async (id: number, body: UpdateTripBody, drops: string[]) => {
+export const updateTrip = async (id: number, body: TCTypes.UpdateTripBody, drops: string[]) => {
     await db.TripModel.update(
         {
             location: body.location,
