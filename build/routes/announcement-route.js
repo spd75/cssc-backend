@@ -34,8 +34,8 @@ router.post('/create', (req, res) => {
         .then((announcement) => response_1.success(res, announcement))
         .catch((err) => response_1.failure(res, err.name, 400));
 });
-router.post('/:id', (req, res) => {
-    const id = +req.body.id;
+router.get('/:id', (req, res) => {
+    const id = +req.params.id;
     AnnounceController.getAnnounceById(id, commonDrops)
         .then((announcement) => response_1.success(res, announcement))
         .catch((err) => response_1.failure(res, err.name, 400));

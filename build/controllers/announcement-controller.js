@@ -17,7 +17,7 @@ const getAll = async (drops) => {
     return connection_1.default.AnnounceModel.findAll({
         attributes: { exclude: drops }
     })
-        .then((response) => response.dataValues)
+        .then((response) => response)
         .catch((err) => debugErrors(err));
 };
 exports.getAll = getAll;

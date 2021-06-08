@@ -19,7 +19,7 @@ export const getAll = async (drops: string[]) => {
     return db.AnnounceModel.findAll({
         attributes: { exclude: drops }
     })
-        .then((response: any) => response.dataValues)
+        .then((response: any) => response)
         .catch((err) => debugErrors(err));
 };
 
