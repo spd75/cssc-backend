@@ -6,6 +6,7 @@ import https from 'https';
 import { resolve } from 'path';
 
 /** Routes */
+import announcementRoutes from './routes/announcement-route';
 import userRoutes from './routes/user-routes';
 import tripRoutes from './routes/trip-routes';
 
@@ -34,6 +35,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 app.use('/users', userRoutes);
 app.use('/trips', tripRoutes);
+app.use('/announcements', announcementRoutes);
 
 app.use((_: Request, res: Response) => {
     res.status(404).json({ error: 'EndpointNotFound' });
