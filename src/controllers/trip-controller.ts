@@ -20,7 +20,9 @@ export const getAllTrips = async () => {
 };
 
 export const createTrip = async (body: TCTypes.CreateTripBody, drops: string[]) => {
+    console.log('got here');
     const vbody = await Valid.validate(Valid.CreateTripSchema, body);
+    console.log('didnt get here');
     return db.TripModel.create({
         location: vbody.location,
         mountain: vbody.mountain,
@@ -49,7 +51,7 @@ export const getTripById = async (id: number, drops: string[]) => {
 };
 
 export const updateTrip = async (id: number, body: TCTypes.UpdateTripBody, drops: string[]) => {
-    const vbody = await Valid.validate(Valid.CreateTripSchema, body);
+    const vbody = await Valid.validate(Valid.UpdateTripSchema, body);
     await db.TripModel.update(
         {
             location: vbody.location,

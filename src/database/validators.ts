@@ -1,5 +1,8 @@
 import JOI from 'joi';
 
+const InvalidBodyError = Error('Body was not valid');
+InvalidBodyError.name = 'InvalidBodyError';
+
 /** Validate function */
 export const validate = async (schema: JOI.ObjectSchema, compare: any) => {
     return schema
@@ -8,7 +11,7 @@ export const validate = async (schema: JOI.ObjectSchema, compare: any) => {
             return compare;
         })
         .catch((_) => {
-            throw Error('Compare does not match schema.');
+            throw InvalidBodyError;
         });
 };
 
@@ -45,8 +48,8 @@ export const UpdateTokenSchema = JOI.object().keys({
 
 /** Trip Schemas */
 export const CreateTripSchema = JOI.object().keys({
-    location: JOI.string().alphanum().required(),
-    mountain: JOI.string().alphanum().required(),
+    location: JOI.string().required(),
+    mountain: JOI.string().required(),
     description: JOI.string().required(),
     startDate: JOI.date().required(),
     endDate: JOI.date().required(),
@@ -56,12 +59,19 @@ export const CreateTripSchema = JOI.object().keys({
 });
 
 export const UpdateTripSchema = JOI.object().keys({
-    location: JOI.string().alphanum(),
-    mountain: JOI.string().alphanum(),
+    location: JOI.string(),
+    mountain: JOI.string(),
     description: JOI.string(),
     startDate: JOI.date(),
     endDate: JOI.date(),
     travelMethod: JOI.string().alphanum(),
     lodgingMethod: JOI.string().alphanum(),
     capacity: JOI.number()
+});
+
+/** Announcement Schemas */
+export const CreateAnnounceBody = JOI.object().keys({
+    title: JOI.string().required(),
+    description: JOI.string().required(),
+    notify: JOI.boolean().required()
 });

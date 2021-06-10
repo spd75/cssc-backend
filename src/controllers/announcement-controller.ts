@@ -1,11 +1,7 @@
+import * as ATypes from './announcement-controller-types';
+import * as Valid from '../database/validators';
 import db from '../database/connection';
 import Lodash from 'lodash';
-
-type CreateAnnounceBody = {
-    title: string;
-    description: string;
-    notify: boolean;
-};
 
 const debugErrors = (err: any, overrideError?: Error) => {
     console.log('\n\n\nSome errors have occured. Their information is below:');
@@ -23,11 +19,12 @@ export const getAll = async (drops: string[]) => {
         .catch((err) => debugErrors(err));
 };
 
-export const createAnnounce = async (body: CreateAnnounceBody, drops: string[]) => {
+export const createAnnounce = async (body: ATypes.CreateAnnounceBody, drops: string[]) => {
+    const vbody = await Valid.validate(Valid.CreateAnnounceBody, body);
     return db.AnnounceModel.create({
-        title: body.title,
-        description: body.description,
-        notify: body.notify
+        title: vbody.title,
+        description: vbody.description,
+        notify: vbody.notify
     })
         .then((response: any) => {
             const dataValues = response.dataValues;

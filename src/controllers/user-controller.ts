@@ -197,7 +197,7 @@ export const getUserByPremail = async (
 };
 
 export const update = async (token: string, body: UCTypes.UpdateUserBody, drops: string[]) => {
-    const vbody = await Valid.validate(Valid.LoginUserSchema, body);
+    const vbody = await Valid.validate(Valid.UpdateUserSchema, body);
     const premail = validateAuthToken(token);
     if (premail !== vbody.premail) {
         throw UCTypes.InvalidTokenError;
@@ -217,7 +217,7 @@ export const update = async (token: string, body: UCTypes.UpdateUserBody, drops:
 };
 
 export const updateRefreshToken = async (body: UCTypes.UpdateTokenBody, drops: string[]) => {
-    const vbody = await Valid.validate(Valid.UpdateUserSchema, body);
+    const vbody = await Valid.validate(Valid.UpdateTokenSchema, body);
     return db.UserModel.findOne({
         where: { premail: vbody.premail },
         attributes: { exclude: drops }
@@ -239,7 +239,7 @@ export const addTripToUser = async (
     tripId: number,
     drops: string[]
 ) => {
-    const vbody = await Valid.validate(Valid.UpdateTokenSchema, body);
+    const vbody = await Valid.validate(Valid.FindUserSchema, body);
     await getUserByPremail(token, vbody, drops)
         .then(async (user) => {
             await db.UserTripRelation.create({
