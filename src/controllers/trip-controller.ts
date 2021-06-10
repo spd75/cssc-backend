@@ -1,4 +1,5 @@
 import * as TCTypes from './trip-controller-types';
+import * as Valid from '../database/validators';
 import db from '../database/connection';
 import Lodash from 'lodash';
 
@@ -19,15 +20,16 @@ export const getAllTrips = async () => {
 };
 
 export const createTrip = async (body: TCTypes.CreateTripBody, drops: string[]) => {
+    const vbody = await Valid.validate(Valid.CreateTripSchema, body);
     return db.TripModel.create({
-        location: body.location,
-        mountain: body.mountain,
-        description: body.description,
-        startDate: body.startDate,
-        endDate: body.endDate,
-        travelMethod: body.travelMethod,
-        lodgingMethod: body.lodgingMethod,
-        capacity: body.capacity
+        location: vbody.location,
+        mountain: vbody.mountain,
+        description: vbody.description,
+        startDate: vbody.startDate,
+        endDate: vbody.endDate,
+        travelMethod: vbody.travelMethod,
+        lodgingMethod: vbody.lodgingMethod,
+        capacity: vbody.capacity
     })
         .then((response: any) => {
             const dataValues = response.dataValues;
@@ -47,16 +49,17 @@ export const getTripById = async (id: number, drops: string[]) => {
 };
 
 export const updateTrip = async (id: number, body: TCTypes.UpdateTripBody, drops: string[]) => {
+    const vbody = await Valid.validate(Valid.CreateTripSchema, body);
     await db.TripModel.update(
         {
-            location: body.location,
-            mountain: body.mountain,
-            description: body.description,
-            startDate: body.startDate,
-            endDate: body.endDate,
-            travelMethod: body.travelMethod,
-            lodgingMethod: body.lodgingMethod,
-            capacity: body.capacity
+            location: vbody.location,
+            mountain: vbody.mountain,
+            description: vbody.description,
+            startDate: vbody.startDate,
+            endDate: vbody.endDate,
+            travelMethod: vbody.travelMethod,
+            lodgingMethod: vbody.lodgingMethod,
+            capacity: vbody.capacity
         },
         { where: { id: id } }
     );

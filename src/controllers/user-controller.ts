@@ -1,4 +1,5 @@
 import * as UCTypes from './user-controller-types';
+import * as Valid from '../database/validators';
 import Bcrypt from 'bcrypt';
 import db from '../database/connection';
 import Dotenv from 'dotenv';
@@ -114,24 +115,25 @@ export const getAllUsers = async () => {
 };
 
 export const createUser = async (body: UCTypes.CreateUserBody, drops: string[]) => {
-    const premail = genPremail(body.email);
+    const vbody = await Valid.validate(Valid.CreateUserSchema, body);
+    const premail = genPremail(vbody.email);
     const userInfo = {
         premail: premail,
-        gradeLevel: body.gradeLevel
+        gradeLevel: vbody.gradeLevel
     };
     const authToken = genToken(userInfo, UCTypes.TokenType.Auth);
     const refreshToken = genToken(userInfo, UCTypes.TokenType.Refresh);
-    const promises = [securePassword(body.password), hashToken(refreshToken)];
+    const promises = [securePassword(vbody.password), hashToken(refreshToken)];
     const resolved = (await handleParallelPromises(promises)) as string[];
 
     return db.UserModel.create(
         {
-            firstName: body.firstName,
-            lastName: body.lastName,
+            firstName: vbody.firstName,
+            lastName: vbody.lastName,
             premail: premail,
-            email: body.email,
+            email: vbody.email,
             password: resolved[0],
-            gradeLevel: body.gradeLevel,
+            gradeLevel: vbody.gradeLevel,
             paidDues: false,
             refreshToken: resolved[1]
         },
@@ -146,13 +148,14 @@ export const createUser = async (body: UCTypes.CreateUserBody, drops: string[]) 
 };
 
 export const login = async (body: UCTypes.LoginBody, drops: string[]) => {
+    const vbody = await Valid.validate(Valid.LoginUserSchema, body);
     return db.UserModel.findOne({
-        where: { premail: body.premail },
+        where: { premail: vbody.premail },
         include: db.TripModel
     })
         .then(async (response: any) => {
             const user = response.dataValues;
-            return validatePassword(user, body.password)
+            return validatePassword(user, vbody.password)
                 .then(async (result) => {
                     if (!result) {
                         throw UCTypes.UserAuthenticationFailed;
@@ -179,8 +182,9 @@ export const getUserByPremail = async (
     body: UCTypes.FindUserbody,
     drops: string[]
 ) => {
+    const vbody = await Valid.validate(Valid.FindUserSchema, body);
     const premail = validateAuthToken(token);
-    if (premail !== body.premail) {
+    if (premail !== vbody.premail) {
         throw UCTypes.InvalidTokenError;
     }
     return db.UserModel.findOne({
@@ -193,32 +197,34 @@ export const getUserByPremail = async (
 };
 
 export const update = async (token: string, body: UCTypes.UpdateUserBody, drops: string[]) => {
+    const vbody = await Valid.validate(Valid.LoginUserSchema, body);
     const premail = validateAuthToken(token);
-    if (premail !== body.premail) {
+    if (premail !== vbody.premail) {
         throw UCTypes.InvalidTokenError;
     }
 
     await db.UserModel.update(
         {
-            firstName: body.firstName,
-            lastName: body.lastName,
-            gradeLevel: body.gradeLevel,
-            paidDues: body.paidDues
+            firstName: vbody.firstName,
+            lastName: vbody.lastName,
+            gradeLevel: vbody.gradeLevel,
+            paidDues: vbody.paidDues
         },
-        { where: { premail: body.premail } }
+        { where: { premail: vbody.premail } }
     );
 
-    return getUserByPremail(token, { premail: body.premail }, drops);
+    return getUserByPremail(token, { premail: vbody.premail }, drops);
 };
 
 export const updateRefreshToken = async (body: UCTypes.UpdateTokenBody, drops: string[]) => {
+    const vbody = await Valid.validate(Valid.UpdateUserSchema, body);
     return db.UserModel.findOne({
-        where: { premail: body.premail },
+        where: { premail: vbody.premail },
         attributes: { exclude: drops }
     })
         .then(async (result: any) => {
             const { newAuthToken, newRefreshToken, hashedRefreshToken } = await refreshAuthToken(
-                body.refreshToken,
+                vbody.refreshToken,
                 result.dataValues
             );
             await updateModel(result, { refreshToken: hashedRefreshToken });
@@ -233,9 +239,9 @@ export const addTripToUser = async (
     tripId: number,
     drops: string[]
 ) => {
-    await getUserByPremail(token, body, drops)
+    const vbody = await Valid.validate(Valid.UpdateTokenSchema, body);
+    await getUserByPremail(token, vbody, drops)
         .then(async (user) => {
-            console.log(user.id);
             await db.UserTripRelation.create({
                 paid: false,
                 UserId: user.id,
@@ -244,5 +250,5 @@ export const addTripToUser = async (
         })
         .catch((err) => debugErrors(err));
 
-    return getUserByPremail(token, body, drops);
+    return getUserByPremail(token, vbody, drops);
 };
